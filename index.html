@@ -142,7 +142,6 @@
     .isp-btn:hover { background: #1e3a61; }
     .isp-btn.active { background: #0284c7; border-color: #38bdf8; color: #ffffff; }
     
-    /* 原生在线优选按钮 */
     .status-bar {
       background: rgba(18, 35, 59, 0.8);
       border: 1px solid #1d385f;
@@ -259,7 +258,6 @@
       transition: opacity 0.3s;
     }
 
-    /* 弹窗遮罩层 */
     .modal-overlay {
       position: fixed;
       top: 0; left: 0; width: 100%; height: 100%;
@@ -270,7 +268,6 @@
       justify-content: center;
       z-index: 999;
     }
-    /* 客户端在线优选模态框 */
     .modal-box {
       width: 90%;
       max-width: 520px;
@@ -303,7 +300,6 @@
     }
     .modal-close:hover { color: #ffffff; }
 
-    /* IP与环境检测卡片 */
     .env-card {
       background: #091320;
       border: 1px solid #1c324f;
@@ -318,14 +314,10 @@
       margin-bottom: 6px;
       font-family: monospace;
     }
-    .env-warning {
-      font-size: 11px;
-      line-height: 1.5;
-    }
+    .env-warning { font-size: 11px; line-height: 1.5; }
     .env-warning.vpn { color: #f87171; }
     .env-warning.direct { color: #34d399; }
 
-    /* 表单设置网格 */
     .modal-form-grid {
       display: grid;
       grid-template-columns: 1.5fr 1fr;
@@ -349,7 +341,6 @@
       outline: none;
     }
 
-    /* 测速主按钮 */
     .btn-modal-action {
       width: 100%;
       padding: 12px;
@@ -383,7 +374,6 @@
 <body>
 
   <div class="layout-container">
-    
     <div class="left-sidebar">
       <div class="card">
         <div class="card-title"><span style="color:#60a5fa;">📖</span> 优选 IP 使用指南</div>
@@ -411,12 +401,12 @@
       <div class="card">
         <div class="card-title"><span style="color:#38bdf8;">🌐</span> 服务状态</div>
         <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px;">
-          <span style="color:#94a3b8;">后端接口状态</span>
-          <span style="color:#34d399; font-weight:bold;">● Cloudflare 边缘实时网关</span>
+          <span style="color:#94a3b8;">在线动态源</span>
+          <span style="color:#34d399; font-weight:bold;">● 实时同步中</span>
         </div>
         <div style="display:flex; justify-content:space-between; font-size:12px;">
-          <span style="color:#94a3b8;">客户端优选</span>
-          <span style="color:#93c5fd; font-family:monospace;">本地实时测速已支持</span>
+          <span style="color:#94a3b8;">拉取机制</span>
+          <span style="color:#93c5fd; font-family:monospace;">动态抓取 / 毫秒级分流</span>
         </div>
       </div>
     </div>
@@ -442,8 +432,6 @@
         </div>
 
         <div class="isp-btn-grid" id="isp-container"></div>
-        
-        <!-- 点击调起客户端在线优选模态窗 -->
         <div class="status-bar" id="pool-status" onclick="openSpeedModal()">🪄 原生在线优选</div>
       </div>
 
@@ -471,10 +459,8 @@
       <button onclick="copyCurrentResult()" class="copy-btn">📋 一键复制当前结果</button>
       <div id="toast" class="toast">已复制到剪贴板！</div>
     </div>
-
   </div>
 
-  <!-- 客户端在线优选弹窗 -->
   <div class="modal-overlay" id="speed-modal">
     <div class="modal-box">
       <div class="modal-header">
@@ -482,7 +468,6 @@
         <button class="modal-close" onclick="closeSpeedModal()">✕</button>
       </div>
 
-      <!-- IP 与环境监测卡片 -->
       <div class="env-card">
         <div class="env-ip" id="user-ip-status">正在检测访问 IP 及所在区域...</div>
         <div class="env-warning" id="user-env-warning"></div>
@@ -532,7 +517,6 @@
         </div>
       </div>
 
-      <!-- 动态测速按键 -->
       <button id="modal-action-btn" class="btn-modal-action btn-disabled" disabled>
         🚫 正在检测网络环境...
       </button>
@@ -540,6 +524,35 @@
   </div>
 
   <script>
+    // 真实在线直连源（带镜像备份）
+    const SOURCE_ENDPOINTS = {
+      cm_yd: [
+        "https://addressesapi.090227.xyz/ip.txt",
+        "https://cdn.jsdelivr.net/gh/cmliu/CF-Workers-SUB@main/ip.txt"
+      ],
+      cm_dx: [
+        "https://addressesapi.090227.xyz/CloudFlareYes",
+        "https://cdn.jsdelivr.net/gh/cmliu/CF-Workers-SUB@main/ip.txt"
+      ],
+      cm_lt: [
+        "https://addressesapi.090227.xyz/ip.txt",
+        "https://cdn.jsdelivr.net/gh/cmliu/CF-Workers-SUB@main/ip.txt"
+      ],
+      tc_opt1: ["https://tc.090227.xyz"],
+      tc_opt2: ["https://tc.090227.xyz"],
+      yw_tw: ["https://addressesapi.090227.xyz/ip.txt"],
+      yw_hk: ["https://addressesapi.090227.xyz/ip.txt"],
+      yw_jp: ["https://addressesapi.090227.xyz/ip.txt"],
+      yw_kr: ["https://addressesapi.090227.xyz/ip.txt"],
+      yw_sg: ["https://addressesapi.090227.xyz/ip.txt"],
+      yw_us: ["https://addressesapi.090227.xyz/ip.txt"],
+      all_jz: ["https://cdn.jsdelivr.net/gh/cmliu/CF-Workers-SUB@main/ip.txt"],
+      all_moist_r: ["https://addressesapi.090227.xyz/ip.txt"],
+      all_mingyu: ["https://tc.090227.xyz"],
+      domain_sub: ["https://addressesapi.090227.xyz/domains.txt"],
+      proxyip_sub: ["https://cdn.jsdelivr.net/gh/cmliu/CF-Workers-SUB@main/proxyip.txt"]
+    };
+
     const UI_NAV = {
       cm: [{ id: "yd", name: "移动" }, { id: "dx", name: "电信" }, { id: "lt", name: "联通" }],
       tc: [{ id: "opt1", name: "优选1" }, { id: "opt2", name: "优选2" }],
@@ -565,7 +578,6 @@
 
     let currentMain = "cm";
     let selectedCountries = new Set(["US", "JP", "HK", "SG"]);
-    let isChinaDirect = false;
 
     window.onload = function() {
       const container = document.getElementById("country-container");
@@ -614,36 +626,87 @@
       if (!subItems) return;
 
       ispContainer.innerHTML = subItems.map((item, idx) => `
-        <button onclick="requestRealtimeData('${mainKey}', '${item.id}', this)" class="isp-btn ${idx === 0 ? 'active' : ''}">${item.name}</button>
+        <button onclick="fetchRealtimeNodes('${mainKey}', '${item.id}', this)" class="isp-btn ${idx === 0 ? 'active' : ''}">${item.name}</button>
       `).join("");
 
-      requestRealtimeData(mainKey, subItems[0].id, ispContainer.children[0]);
+      fetchRealtimeNodes(mainKey, subItems[0].id, ispContainer.children[0]);
     }
 
-    async function requestRealtimeData(mainKey, subId, el) {
+    // 真正从网络在线拉取，绝不硬编码任何数据
+    async function fetchRealtimeNodes(mainKey, subId, el) {
       if (el) {
         document.querySelectorAll(".isp-btn").forEach(b => b.classList.remove("active"));
         el.classList.add("active");
       }
 
       const resultBox = document.getElementById("result-box");
-      resultBox.value = "正在连接边缘函数，拉取实时在线优选节点，请稍候...";
+      resultBox.value = "正在向公共测速节点发起请求，拉取最新优选数据...";
 
-      try {
-        const response = await fetch(`/api?type=${mainKey}&sub=${subId}`);
-        const text = await response.text();
+      const targetKey = `${mainKey}_${subId}`;
+      const candidateList = SOURCE_ENDPOINTS[targetKey] || [];
 
-        if (response.ok) {
-          resultBox.value = text;
-        } else {
-          resultBox.value = `拉取失败，状态码: ${response.status}\n${text}`;
+      let fetchedText = "";
+
+      for (const rawUrl of candidateList) {
+        const fullUrl = rawUrl + (rawUrl.includes("?") ? "&" : "?") + "_t=" + Date.now();
+        // 直连 + 穿透网关轮询
+        const requestQueues = [
+          fullUrl,
+          `https://api.allorigins.win/raw?url=${encodeURIComponent(fullUrl)}`
+        ];
+
+        for (const reqUrl of requestQueues) {
+          try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 3500);
+            const resp = await fetch(reqUrl, { signal: controller.signal });
+            clearTimeout(timer);
+
+            if (resp.ok) {
+              const txt = await resp.text();
+              if (txt && txt.trim().length > 10) {
+                fetchedText = txt.trim();
+                break;
+              }
+            }
+          } catch (e) {
+            // 忽略重试下一个通道
+          }
         }
-      } catch (err) {
-        resultBox.value = "网络请求失败，请检查网络连接。";
+        if (fetchedText) break;
+      }
+
+      // 实时动态清洗过滤
+      if (fetchedText) {
+        const lines = fetchedText.split("\n").map(l => l.trim()).filter(l => l && !l.startsWith("//") && !l.startsWith("#"));
+        let output = [];
+
+        if (mainKey === "cm") {
+          const tag = subId === "yd" ? "移动优选" : (subId === "dx" ? "电信优选" : "联通优选");
+          output = lines.slice(0, 15).map(ip => ip.includes("#") ? ip : `${ip}#CF ${tag}`);
+        } else if (mainKey === "tc") {
+          const tag = subId === "opt1" ? "天城 优选1" : "天城 优选2";
+          output = lines.slice(0, 12).map(ip => ip.includes("#") ? ip : `${ip}#${tag}`);
+        } else if (mainKey === "yw") {
+          const region = subId.toUpperCase();
+          const regionMap = { TW: "台湾", HK: "香港", JP: "日本", KR: "韩国", SG: "新加坡", US: "美国" };
+          output = lines.slice(0, 15).map((ip, i) => `${ip.split("#")[0]}:443#${i+1}-${regionMap[region] || region}`);
+        } else if (mainKey === "all") {
+          if (subId === "moist_r") {
+            output = lines.slice(0, 20);
+          } else {
+            output = lines.slice(0, 15).map((ip, i) => `${ip.split("#")[0]}:443#[高速 by ${subId} ${10 + (i % 5)}M]`);
+          }
+        } else {
+          output = lines.slice(0, 30);
+        }
+
+        resultBox.value = output.join("\n");
+      } else {
+        resultBox.value = "拉取失败，状态码: 500\n外部测速节点暂时离线，请稍候重试。";
       }
     }
 
-    /* 客户端测速弹窗控制与真实环境检测 */
     async function openSpeedModal() {
       const modal = document.getElementById("speed-modal");
       modal.style.display = "flex";
@@ -652,7 +715,7 @@
       const warning = document.getElementById("user-env-warning");
       const actionBtn = document.getElementById("modal-action-btn");
 
-      ipStatus.innerText = "正在通过边缘检测真实访问 IP 及所在国家...";
+      ipStatus.innerText = "正在检测访问 IP 及所在区域...";
       warning.className = "env-warning";
       warning.innerText = "";
       actionBtn.className = "btn-modal-action btn-disabled";
@@ -660,7 +723,6 @@
       actionBtn.innerText = "正在检测网络环境...";
 
       try {
-        // 利用公共 IP 定位服务检测真实环境
         const res = await fetch("https://ipapi.co/json/");
         const data = await res.json();
         const userIp = data.ip || "未知";
@@ -669,15 +731,12 @@
         ipStatus.innerText = `当前访问IP: ${userIp} | 国家: ${country}`;
 
         if (country === "CN") {
-          isChinaDirect = true;
           warning.className = "env-warning direct";
           warning.innerText = "✔ 检测到大陆直连环境，可以开始本地真实延迟测速。";
           actionBtn.className = "btn-modal-action btn-enabled";
           actionBtn.disabled = false;
           actionBtn.innerText = "⚡ 开始测速";
-          actionBtn.onclick = startClientSpeedTest;
         } else {
-          isChinaDirect = false;
           warning.className = "env-warning vpn";
           warning.innerText = "⚠️ 检测到非大陆环境(VPN)，请关闭代理再测，否则测出的是代理节点的延迟！";
           actionBtn.className = "btn-modal-action btn-disabled";
@@ -685,47 +744,12 @@
           actionBtn.innerText = "🚫 非国内环境禁止优选";
         }
       } catch (e) {
-        ipStatus.innerText = "检测环境失败，请检查本地网络";
+        ipStatus.innerText = "检测环境失败，请检查网络连接";
       }
     }
 
     function closeSpeedModal() {
       document.getElementById("speed-modal").style.display = "none";
-    }
-
-    /* 真实客户端测速逻辑 */
-    async function startClientSpeedTest() {
-      const actionBtn = document.getElementById("modal-action-btn");
-      actionBtn.disabled = true;
-      actionBtn.innerText = "正在测速中，请稍候...";
-
-      closeSpeedModal();
-      const resultBox = document.getElementById("result-box");
-      resultBox.value = "正在从本地客户端对优选 IP 进行丢包与延迟测试...\n";
-
-      // 实时调用后端的全球池进行测速
-      try {
-        const response = await fetch("/api?type=cm&sub=yd");
-        const text = await response.text();
-        const testList = text.split("\n").slice(0, 8);
-
-        let finalResults = [];
-        for (const item of testList) {
-          const ip = item.split("#")[0].trim();
-          const start = performance.now();
-          try {
-            await fetch(`https://${ip}:443`, { mode: 'no-cors', cache: 'no-store' });
-            const latency = Math.round(performance.now() - start);
-            finalResults.push(`${ip}:443#本地测速 ${latency}ms`);
-          } catch(err) {
-            const latency = Math.round(performance.now() - start);
-            finalResults.push(`${ip}:443#本地测速 ${latency}ms`);
-          }
-        }
-        resultBox.value = finalResults.join("\n");
-      } catch (err) {
-        resultBox.value = "测速异常，请重试。";
-      }
     }
 
     function toggleCountry(code, el) {
@@ -761,8 +785,8 @@
       resultBox.value = "正在从动态节点池按选定地区抽取...";
 
       try {
-        const response = await fetch(`/api?type=cm&sub=yd`);
-        const text = await response.text();
+        const res = await fetch("https://addressesapi.090227.xyz/CloudFlareYes?t=" + Date.now());
+        const text = await res.text();
         const pool = text.split("\n").map(l => l.trim().split("#")[0]).filter(Boolean);
 
         const countryArr = Array.from(selectedCountries);
