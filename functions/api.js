@@ -1,62 +1,80 @@
-// Cloudflare Pages 边缘后端函数：实时拉取与动态解析，杜绝写死
+// Cloudflare Pages 边缘后端网关：全动态抓取与容灾
 export async function onRequest(context) {
   const url = new URL(context.request.url);
-  const type = url.searchParams.get("type"); // 例如: cm, tc, yw, all, domain, proxyip
-  const sub = url.searchParams.get("sub");   // 例如: yd, dx, lt, opt1, tw, jz...
+  const type = url.searchParams.get("type") || "cm";
+  const sub = url.searchParams.get("sub") || "yd";
 
-  // 全网权威公共优选测速实时数据源
-  const UPSTREAM_SOURCES = {
-    // CM 优选：直接对接 cmliu 实时维护库与官方探活库
-    cm_yd: "https://raw.githubusercontent.com/cmliu/CF-Workers-SUB/main/ip.txt",
-    cm_dx: "https://addressesapi.090227.xyz/CloudFlareYes",
-    cm_lt: "https://raw.githubusercontent.com/cmliu/CF-Workers-SUB/main/ip.txt",
+  // 权威在线动态优选源集合（包含备用镜像通道）
+  const SOURCE_MAP = {
+    // CM 优选
+    "cm_yd": [
+      "https://raw.githubusercontent.com/cmliu/CF-Workers-SUB/main/ip.txt",
+      "https://addressesapi.090227.xyz/ip.txt"
+    ],
+    "cm_dx": [
+      "https://addressesapi.090227.xyz/CloudFlareYes",
+      "https://raw.githubusercontent.com/cmliu/CF-Workers-SUB/main/ip.txt"
+    ],
+    "cm_lt": [
+      "https://raw.githubusercontent.com/cmliu/CF-Workers-SUB/main/ip.txt",
+      "https://addressesapi.090227.xyz/ip.txt"
+    ],
 
-    // 天城优选：对接天城每日自动测速直出源
-    tc_opt1: "https://tc.090227.xyz",
-    tc_opt2: "https://tc.090227.xyz",
+    // 天城优选
+    "tc_opt1": ["https://tc.090227.xyz", "https://addressesapi.090227.xyz/CloudFlareYes"],
+    "tc_opt2": ["https://tc.090227.xyz", "https://addressesapi.090227.xyz/ip.txt"],
 
-    // 乌鸦优选：对接区域打标聚合源
-    yw_tw: "https://addressesapi.090227.xyz/ip.txt",
-    yw_hk: "https://addressesapi.090227.xyz/ip.txt",
-    yw_jp: "https://addressesapi.090227.xyz/ip.txt",
-    yw_kr: "https://addressesapi.090227.xyz/ip.txt",
-    yw_sg: "https://addressesapi.090227.xyz/ip.txt",
-    yw_us: "https://addressesapi.090227.xyz/ip.txt",
+    // 乌鸦优选（各地区）
+    "yw_tw": ["https://addressesapi.090227.xyz/ip.txt"],
+    "yw_hk": ["https://addressesapi.090227.xyz/ip.txt"],
+    "yw_jp": ["https://addressesapi.090227.xyz/ip.txt"],
+    "yw_kr": ["https://addressesapi.090227.xyz/ip.txt"],
+    "yw_sg": ["https://addressesapi.090227.xyz/ip.txt"],
+    "yw_us": ["https://addressesapi.090227.xyz/ip.txt"],
 
-    // 优选合集：对接 JZ / Moist_R / mingyu 测速作者发布源
-    all_jz: "https://raw.githubusercontent.com/cmliu/CF-Workers-SUB/main/ip.txt",
-    all_moist_r: "https://addressesapi.090227.xyz/ip.txt",
-    all_mingyu: "https://tc.090227.xyz",
+    // 优选合集
+    "all_jz": ["https://raw.githubusercontent.com/cmliu/CF-Workers-SUB/main/ip.txt", "https://addressesapi.090227.xyz/ip.txt"],
+    "all_moist_r": ["https://addressesapi.090227.xyz/ip.txt"],
+    "all_mingyu": ["https://tc.090227.xyz", "https://addressesapi.090227.xyz/CloudFlareYes"],
 
-    // 域名与 ProxyIP：每日探活列表
-    domain_sub: "https://addressesapi.090227.xyz/domains.txt",
-    proxyip_sub: "https://raw.githubusercontent.com/cmliu/CF-Workers-SUB/main/proxyip.txt"
+    // 优选域名（无论前端传 domain 还是 domain_sub 都能匹配）
+    "domain": ["https://addressesapi.090227.xyz/domains.txt"],
+    "domain_sub": ["https://addressesapi.090227.xyz/domains.txt"],
+
+    // ProxyIP
+    "proxyip": ["https://raw.githubusercontent.com/cmliu/CF-Workers-SUB/main/proxyip.txt"],
+    "proxyip_sub": ["https://raw.githubusercontent.com/cmliu/CF-Workers-SUB/main/proxyip.txt"]
   };
 
-  const key = `${type}_${sub}`;
-  const targetUrl = UPSTREAM_SOURCES[key];
+  // 智能寻找目标源列表
+  let candidates = SOURCE_MAP[`${type}_${sub}`] || SOURCE_MAP[type] || SOURCE_MAP["cm_yd"];
 
-  if (!targetUrl) {
-    return new Response("未找到对应的动态源", { status: 404 });
+  let rawText = "";
+  for (const targetUrl of candidates) {
+    try {
+      const response = await fetch(`${targetUrl}?_t=${Date.now()}`, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        },
+        cf: { cacheTtl: 30 }
+      });
+      if (response.ok) {
+        const text = await response.text();
+        if (text && text.trim().length > 10) {
+          rawText = text;
+          break; // 成功拉取到有效动态内容，跳出
+        }
+      }
+    } catch (e) {
+      // 尝试下一个候选地址
+    }
   }
 
-  try {
-    // 服务端发请求，完全不受浏览器跨域和本地 IP 限制，附加防缓存时间戳
-    const response = await fetch(`${targetUrl}?_t=${Date.now()}`, {
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
-      cf: { cacheTtl: 60 } // 边缘仅缓存60秒，保证数据始终是新鲜的
-    });
-
-    if (!response.ok) {
-      return new Response(`拉取失败，状态码: ${response.status}`, { status: response.status });
-    }
-
-    const rawText = await response.text();
+  // 动态清洗与重组
+  if (rawText) {
     const lines = rawText.split("\n").map(l => l.trim()).filter(l => l && !l.startsWith("//") && !l.startsWith("#"));
-
     let output = [];
 
-    // 根据请求的类型，进行真正的动态格式重构
     if (type === "cm") {
       const tag = sub === "yd" ? "移动优选" : (sub === "dx" ? "电信优选" : "联通优选");
       output = lines.slice(0, 15).map(ip => ip.includes("#") ? ip : `${ip}#CF ${tag}`);
@@ -69,7 +87,8 @@ export async function onRequest(context) {
     } else if (type === "all") {
       output = lines.slice(0, 15).map((ip, i) => `${ip.split("#")[0]}:443#[高速 by ${sub} ${10 + (i % 5)}M]`);
     } else {
-      output = lines.slice(0, 25);
+      // domain 或 proxyip，保持干净文本行
+      output = lines.slice(0, 30);
     }
 
     return new Response(output.join("\n"), {
@@ -78,7 +97,11 @@ export async function onRequest(context) {
         "Access-Control-Allow-Origin": "*"
       }
     });
-  } catch (err) {
-    return new Response("后端网关抓取上游节点超时，请重试", { status: 502 });
   }
+
+  // 极端情况下若上游完全失联，返回友好提示
+  return new Response("上游实时测速节点同步中，请稍后刷新重试。", {
+    status: 503,
+    headers: { "Content-Type": "text/plain; charset=utf-8" }
+  });
 }
