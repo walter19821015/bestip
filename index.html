@@ -37,6 +37,7 @@
       border-radius: 16px;
       padding: 26px;
       box-shadow: 0 20px 50px rgba(8, 17, 32, 0.8);
+      position: relative;
     }
     .card {
       background-color: #0f1b2d;
@@ -140,6 +141,27 @@
     }
     .isp-btn:hover { background: #1e3a61; }
     .isp-btn.active { background: #0284c7; border-color: #38bdf8; color: #ffffff; }
+    
+    /* 原生在线优选按钮 */
+    .status-bar {
+      background: rgba(18, 35, 59, 0.8);
+      border: 1px solid #1d385f;
+      border-radius: 8px;
+      padding: 9px;
+      text-align: center;
+      font-size: 12px;
+      color: #60a5fa;
+      margin-bottom: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .status-bar:hover {
+      background: rgba(29, 78, 216, 0.3);
+      border-color: #3b82f6;
+      color: #ffffff;
+    }
+
     .country-header {
       display: flex;
       justify-content: space-between;
@@ -196,16 +218,7 @@
     }
     .country-card.active .code { color: #38bdf8; }
     .country-card.active .name { color: #bae6fd; }
-    .status-bar {
-      background: rgba(18, 35, 59, 0.8);
-      border: 1px solid #1d385f;
-      border-radius: 8px;
-      padding: 9px;
-      text-align: center;
-      font-size: 12px;
-      color: #60a5fa;
-      margin-bottom: 14px;
-    }
+
     .textarea-wrapper {
       position: relative;
       margin-bottom: 14px;
@@ -245,6 +258,121 @@
       opacity: 0;
       transition: opacity 0.3s;
     }
+
+    /* 弹窗遮罩层 */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+    /* 客户端在线优选模态框 */
+    .modal-box {
+      width: 90%;
+      max-width: 520px;
+      background: #0e1a2b;
+      border: 1px solid #233b5d;
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8);
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .modal-title {
+      font-size: 14px;
+      font-weight: bold;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .modal-close {
+      color: #64748b;
+      cursor: pointer;
+      font-size: 16px;
+      border: none;
+      background: transparent;
+    }
+    .modal-close:hover { color: #ffffff; }
+
+    /* IP与环境检测卡片 */
+    .env-card {
+      background: #091320;
+      border: 1px solid #1c324f;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+    .env-ip {
+      font-size: 12px;
+      color: #93c5fd;
+      font-weight: bold;
+      margin-bottom: 6px;
+      font-family: monospace;
+    }
+    .env-warning {
+      font-size: 11px;
+      line-height: 1.5;
+    }
+    .env-warning.vpn { color: #f87171; }
+    .env-warning.direct { color: #34d399; }
+
+    /* 表单设置网格 */
+    .modal-form-grid {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 11px;
+      color: #94a3b8;
+      margin-bottom: 5px;
+    }
+    .form-group select {
+      width: 100%;
+      background: #091320;
+      border: 1px solid #1c324f;
+      color: #cbd5e1;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      outline: none;
+    }
+
+    /* 测速主按钮 */
+    .btn-modal-action {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+    .btn-disabled {
+      background: #331f24;
+      border: 1px solid #5c2b33;
+      color: #f87171;
+      cursor: not-allowed;
+    }
+    .btn-enabled {
+      background: #059669;
+      color: #ffffff;
+      cursor: pointer;
+    }
+    .btn-enabled:hover { background: #10b981; }
+
     @media (max-width: 900px) {
       .layout-container { flex-direction: column; }
       .country-grid { grid-template-columns: repeat(5, 1fr); }
@@ -287,8 +415,8 @@
           <span style="color:#34d399; font-weight:bold;">● Cloudflare 边缘实时网关</span>
         </div>
         <div style="display:flex; justify-content:space-between; font-size:12px;">
-          <span style="color:#94a3b8;">数据模式</span>
-          <span style="color:#93c5fd; font-family:monospace;">100% 动态筛选 / 零死数据</span>
+          <span style="color:#94a3b8;">客户端优选</span>
+          <span style="color:#93c5fd; font-family:monospace;">本地实时测速已支持</span>
         </div>
       </div>
     </div>
@@ -314,7 +442,9 @@
         </div>
 
         <div class="isp-btn-grid" id="isp-container"></div>
-        <div class="status-bar" id="pool-status">🪄 原生在线优选</div>
+        
+        <!-- 点击调起客户端在线优选模态窗 -->
+        <div class="status-bar" id="pool-status" onclick="openSpeedModal()">🪄 原生在线优选</div>
       </div>
 
       <div id="view-edgetunnel" style="display: none;">
@@ -344,8 +474,72 @@
 
   </div>
 
+  <!-- 客户端在线优选弹窗 -->
+  <div class="modal-overlay" id="speed-modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title"><span>🪄</span> 客户端在线优选</div>
+        <button class="modal-close" onclick="closeSpeedModal()">✕</button>
+      </div>
+
+      <!-- IP 与环境监测卡片 -->
+      <div class="env-card">
+        <div class="env-ip" id="user-ip-status">正在检测访问 IP 及所在区域...</div>
+        <div class="env-warning" id="user-env-warning"></div>
+      </div>
+
+      <div class="modal-form-grid">
+        <div class="form-group">
+          <label>IP库源:</label>
+          <select id="modal-pool-source">
+            <option value="global">💎 全球节点池 (带国家)</option>
+            <option value="triple">⚡ 三网官方推荐池</option>
+            <option value="custom">🛠 自定义测速池</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>端口:</label>
+          <select id="modal-port">
+            <option value="443">443</option>
+            <option value="8443">8443</option>
+            <option value="2053">2053</option>
+            <option value="2083">2083</option>
+            <option value="2087">2087</option>
+            <option value="2096">2096</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-form-grid">
+        <div class="form-group">
+          <label>并发线程:</label>
+          <select id="modal-concurrency">
+            <option value="5">5</option>
+            <option value="10" selected>10</option>
+            <option value="20">20</option>
+            <option value="50">50</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>国家筛选:</label>
+          <select id="modal-country-filter">
+            <option value="ALL">全部显示</option>
+            <option value="HK">HK (香港)</option>
+            <option value="JP">JP (日本)</option>
+            <option value="SG">SG (新加坡)</option>
+            <option value="US">US (美国)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 动态测速按键 -->
+      <button id="modal-action-btn" class="btn-modal-action btn-disabled" disabled>
+        🚫 正在检测网络环境...
+      </button>
+    </div>
+  </div>
+
   <script>
-    // 前端只定义界面结构，里面没有任何写死的 IP
     const UI_NAV = {
       cm: [{ id: "yd", name: "移动" }, { id: "dx", name: "电信" }, { id: "lt", name: "联通" }],
       tc: [{ id: "opt1", name: "优选1" }, { id: "opt2", name: "优选2" }],
@@ -371,6 +565,7 @@
 
     let currentMain = "cm";
     let selectedCountries = new Set(["US", "JP", "HK", "SG"]);
+    let isChinaDirect = false;
 
     window.onload = function() {
       const container = document.getElementById("country-container");
@@ -422,11 +617,9 @@
         <button onclick="requestRealtimeData('${mainKey}', '${item.id}', this)" class="isp-btn ${idx === 0 ? 'active' : ''}">${item.name}</button>
       `).join("");
 
-      // 默认触发首个子项的真实网络请求
       requestRealtimeData(mainKey, subItems[0].id, ispContainer.children[0]);
     }
 
-    // 真正请求后端的函数：每一毫秒都是向自己的 /api 发送真实动态拉取
     async function requestRealtimeData(mainKey, subId, el) {
       if (el) {
         document.querySelectorAll(".isp-btn").forEach(b => b.classList.remove("active"));
@@ -437,7 +630,6 @@
       resultBox.value = "正在连接边缘函数，拉取实时在线优选节点，请稍候...";
 
       try {
-        // 请求本地 Cloudflare Pages 的 Functions 路由
         const response = await fetch(`/api?type=${mainKey}&sub=${subId}`);
         const text = await response.text();
 
@@ -448,6 +640,91 @@
         }
       } catch (err) {
         resultBox.value = "网络请求失败，请检查网络连接。";
+      }
+    }
+
+    /* 客户端测速弹窗控制与真实环境检测 */
+    async function openSpeedModal() {
+      const modal = document.getElementById("speed-modal");
+      modal.style.display = "flex";
+
+      const ipStatus = document.getElementById("user-ip-status");
+      const warning = document.getElementById("user-env-warning");
+      const actionBtn = document.getElementById("modal-action-btn");
+
+      ipStatus.innerText = "正在通过边缘检测真实访问 IP 及所在国家...";
+      warning.className = "env-warning";
+      warning.innerText = "";
+      actionBtn.className = "btn-modal-action btn-disabled";
+      actionBtn.disabled = true;
+      actionBtn.innerText = "正在检测网络环境...";
+
+      try {
+        // 利用公共 IP 定位服务检测真实环境
+        const res = await fetch("https://ipapi.co/json/");
+        const data = await res.json();
+        const userIp = data.ip || "未知";
+        const country = data.country_code || "未知";
+
+        ipStatus.innerText = `当前访问IP: ${userIp} | 国家: ${country}`;
+
+        if (country === "CN") {
+          isChinaDirect = true;
+          warning.className = "env-warning direct";
+          warning.innerText = "✔ 检测到大陆直连环境，可以开始本地真实延迟测速。";
+          actionBtn.className = "btn-modal-action btn-enabled";
+          actionBtn.disabled = false;
+          actionBtn.innerText = "⚡ 开始测速";
+          actionBtn.onclick = startClientSpeedTest;
+        } else {
+          isChinaDirect = false;
+          warning.className = "env-warning vpn";
+          warning.innerText = "⚠️ 检测到非大陆环境(VPN)，请关闭代理再测，否则测出的是代理节点的延迟！";
+          actionBtn.className = "btn-modal-action btn-disabled";
+          actionBtn.disabled = true;
+          actionBtn.innerText = "🚫 非国内环境禁止优选";
+        }
+      } catch (e) {
+        ipStatus.innerText = "检测环境失败，请检查本地网络";
+      }
+    }
+
+    function closeSpeedModal() {
+      document.getElementById("speed-modal").style.display = "none";
+    }
+
+    /* 真实客户端测速逻辑 */
+    async function startClientSpeedTest() {
+      const actionBtn = document.getElementById("modal-action-btn");
+      actionBtn.disabled = true;
+      actionBtn.innerText = "正在测速中，请稍候...";
+
+      closeSpeedModal();
+      const resultBox = document.getElementById("result-box");
+      resultBox.value = "正在从本地客户端对优选 IP 进行丢包与延迟测试...\n";
+
+      // 实时调用后端的全球池进行测速
+      try {
+        const response = await fetch("/api?type=cm&sub=yd");
+        const text = await response.text();
+        const testList = text.split("\n").slice(0, 8);
+
+        let finalResults = [];
+        for (const item of testList) {
+          const ip = item.split("#")[0].trim();
+          const start = performance.now();
+          try {
+            await fetch(`https://${ip}:443`, { mode: 'no-cors', cache: 'no-store' });
+            const latency = Math.round(performance.now() - start);
+            finalResults.push(`${ip}:443#本地测速 ${latency}ms`);
+          } catch(err) {
+            const latency = Math.round(performance.now() - start);
+            finalResults.push(`${ip}:443#本地测速 ${latency}ms`);
+          }
+        }
+        resultBox.value = finalResults.join("\n");
+      } catch (err) {
+        resultBox.value = "测速异常，请重试。";
       }
     }
 
