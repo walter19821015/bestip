@@ -405,8 +405,8 @@
           <span style="color:#34d399; font-weight:bold;">● 官方实时优选源</span>
         </div>
         <div style="display:flex; justify-content:space-between; font-size:12px;">
-          <span style="color:#94a3b8;">同步机制</span>
-          <span style="color:#93c5fd; font-family:monospace;">运营商精准动态匹配</span>
+          <span style="color:#94a3b8;">拉取机制</span>
+          <span style="color:#93c5fd; font-family:monospace;">动态全量输出 / 零截断</span>
         </div>
       </div>
     </div>
@@ -453,7 +453,7 @@
       </div>
 
       <div class="textarea-wrapper">
-        <textarea id="result-box" readonly placeholder="请在上方选择具体线路..."></textarea>
+        <textarea id="result-box" readonly placeholder="请在上方点击具体的二级节点，拉取最新优选列表..."></textarea>
       </div>
 
       <button onclick="copyCurrentResult()" class="copy-btn">📋 一键复制当前结果</button>
@@ -539,8 +539,7 @@
       all_jz: "https://bestcf.pages.dev/uouin/all.txt",
       all_moist_r: "https://bestcf.pages.dev/s5gy/all.txt",
       all_mingyu: "https://bestcf.pages.dev/wetest/ipv4.txt",
-      domain_sub: "https://bestcf.pages.dev/domain/all.txt",
-      proxyip_sub: "https://bestcf.pages.dev/WARP/WARP-MINI.txt"
+      domain_sub: "https://bestcf.pages.dev/domain/all.txt"
     };
 
     const UI_NAV = {
@@ -578,6 +577,7 @@
         </div>
       `).join("");
 
+      // 初始化只展示按钮，绝不自作主张发起网络请求
       renderSubNav("cm");
     };
 
@@ -603,6 +603,7 @@
       }
     }
 
+    // 点击大分类：仅渲染对应二级子项按钮，不预选、不发请求
     function selectCategory(mainKey, el) {
       currentMain = mainKey;
       document.querySelectorAll(".sub-btn").forEach(b => b.classList.remove("active"));
@@ -615,13 +616,12 @@
       const subItems = UI_NAV[mainKey];
       if (!subItems) return;
 
-      ispContainer.innerHTML = subItems.map((item, idx) => `
-        <button onclick="fetchTargetData('${mainKey}', '${item.id}', this)" class="isp-btn ${idx === 0 ? 'active' : ''}">${item.name}</button>
+      ispContainer.innerHTML = subItems.map(item => `
+        <button onclick="fetchTargetData('${mainKey}', '${item.id}', this)" class="isp-btn">${item.name}</button>
       `).join("");
-
-      fetchTargetData(mainKey, subItems[0].id, ispContainer.children[0]);
     }
 
+    // 用户亲自点击二级子项才触发
     async function fetchTargetData(mainKey, subId, el) {
       if (el) {
         document.querySelectorAll(".isp-btn").forEach(b => b.classList.remove("active"));
@@ -629,8 +629,37 @@
       }
 
       const resultBox = document.getElementById("result-box");
-      resultBox.value = "正在从实时测速节点同步最新数据，请稍候...";
 
+      // ProxyIP 原版结构
+      if (mainKey === "proxyip") {
+        resultBox.value = [
+          "⏩ 自动全球",
+          "- ProxyIP.CMLiussss.net",
+          "",
+          "🌐 亚洲",
+          "- ProxyIP.HK.CMLiussss.net",
+          "- ProxyIP.SG.CMLiussss.net",
+          "- ProxyIP.JP.CMLiussss.net",
+          "- ProxyIP.KR.CMLiussss.net",
+          "- ProxyIP.IN.CMLiussss.net",
+          "",
+          "🌐 欧洲",
+          "- ProxyIP.GB.CMLiussss.net",
+          "- ProxyIP.FR.CMLiussss.net",
+          "- ProxyIP.DE.CMLiussss.net",
+          "- ProxyIP.NL.CMLiussss.net",
+          "- ProxyIP.SE.CMLiussss.net",
+          "- ProxyIP.IT.CMLiussss.net",
+          "- ProxyIP.ES.CMLiussss.net",
+          "",
+          "🌐 北美洲",
+          "- ProxyIP.US.CMLiussss.net",
+          "- ProxyIP.CA.CMLiussss.net"
+        ].join("\n");
+        return;
+      }
+
+      resultBox.value = "正在从实时测速节点同步最新数据，请稍候...";
       const targetKey = `${mainKey}_${subId}`;
       const url = ROUTE_ENDPOINTS[targetKey];
 
@@ -645,6 +674,7 @@
 
         let output = [];
 
+        // 1. CM 优选：全量保留匹配到的运营商节点，绝不切断
         if (mainKey === "cm") {
           const kw = subId === "yd" ? "移动" : (subId === "dx" ? "电信" : "联通");
           const matched = lines.filter(l => l.includes(kw));
@@ -655,30 +685,32 @@
             if (ip && !output.some(o => o.startsWith(ip))) {
               output.push(`${ip}#CF ${kw}优选`);
             }
-            if (output.length >= 8) break;
           }
         }
+        // 2. 天城优选：全量输出
         else if (mainKey === "tc") {
           const tag = subId === "opt1" ? "优选1" : "优选2";
-          output = lines.slice(0, 10).map((l, idx) => {
+          output = lines.map((l, idx) => {
             const ip = l.split("#")[0].trim();
             const host = ip.includes(":") ? ip : `${ip}:443`;
             return `${host}#天城 ${tag}-${String(idx+1).padStart(2, '0')}`;
           });
         }
+        // 3. 乌鸦优选：上游测出多少个（如台湾17个）全量输出，零截断
         else if (mainKey === "yw") {
           const regionCn = { tw: "台湾", hk: "香港", jp: "日本", kr: "韩国", sg: "新加坡", us: "美国" }[subId] || subId.toUpperCase();
-          output = lines.slice(0, 17).map((l, idx) => {
+          output = lines.map((l, idx) => {
             const ip = l.split("#")[0].trim();
             const host = ip.includes(":") ? ip : `${ip}:443`;
             return `${host}#${idx+1}-${regionCn}`;
           });
         }
+        // 4. 优选合集：全量输出
         else if (mainKey === "all") {
           if (subId === "jz") {
             const ports = [443, 8443, 443, 443, 443, 8443, 443];
             const areas = ["HK", "HK", "JP", "KR", "KR", "KR", "TW"];
-            output = lines.slice(0, 7).map((l, idx) => {
+            output = lines.map((l, idx) => {
               const ip = l.split("#")[0].split(":")[0].trim();
               const p = ports[idx % ports.length];
               const a = areas[idx % areas.length];
@@ -686,19 +718,20 @@
               return `${ip}:${p}#${a} [高速 by Jz ${spd}M]`;
             });
           } else if (subId === "moist_r") {
-            output = lines.slice(0, 17).map(l => {
+            output = lines.map(l => {
               const clean = l.replace(/\|.*$/, "").trim();
               return clean.includes("#") ? clean : `${clean} #Moist_R`;
             });
           } else {
-            output = lines.slice(0, 15).map(l => {
+            output = lines.map(l => {
               const ip = l.split("#")[0].trim();
               return `${ip}#MingYu 优选`;
             });
           }
         }
-        else {
-          output = lines.slice(0, 25).map(l => l.split("#")[0].trim());
+        // 5. 优选域名：全量输出原站带端口与备注列表
+        else if (mainKey === "domain") {
+          output = lines;
         }
 
         resultBox.value = output.join("\n");
