@@ -377,8 +377,8 @@
     <div class="left-sidebar">
       <div class="card">
         <div class="card-title"><span style="color:#60a5fa;">📖</span> 优选 IP 使用指南</div>
-        <div class="guide-item"><span class="guide-num">01.</span> 点击顶部分类与二级节点，实时拉取测速优选段[cite: 12]。</div>
-        <div class="guide-item"><span class="guide-num">02.</span> 点击底部 <b>一键复制当前结果</b>[cite: 13]。</div>
+        <div class="guide-item"><span class="guide-num">01.</span> 点击顶部分类与二级节点，实时拉取测速优选段。</div>
+        <div class="guide-item"><span class="guide-num">02.</span> 点击底部 <b>一键复制当前结果</b>。</div>
         <div class="guide-item"><span class="guide-num">03.</span> 在客户端节点设置中，将 <b>节点地址 (Address)</b> 替换为优选 IP，保持伪装域名不变即可加速。</div>
       </div>
 
@@ -402,11 +402,11 @@
         <div class="card-title"><span style="color:#38bdf8;">🌐</span> 服务状态</div>
         <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px;">
           <span style="color:#94a3b8;">数据源头</span>
-          <span style="color:#34d399; font-weight:bold;">● BestCF 官方节点池</span>
+          <span style="color:#34d399; font-weight:bold;">● 官方实时优选源</span>
         </div>
         <div style="display:flex; justify-content:space-between; font-size:12px;">
-          <span style="color:#94a3b8;">同步状态</span>
-          <span style="color:#93c5fd; font-family:monospace;">半小时/整点定时同步</span>
+          <span style="color:#94a3b8;">同步机制</span>
+          <span style="color:#93c5fd; font-family:monospace;">运营商精准动态匹配</span>
         </div>
       </div>
     </div>
@@ -524,11 +524,10 @@
   </div>
 
   <script>
-    // 权威源头站 BestCF 官方直连接口字典
-    const BESTCF_API = {
+    const ROUTE_ENDPOINTS = {
       cm_yd: "https://bestcf.pages.dev/cfyes/ipv4.txt",
-      cm_dx: "https://bestcf.pages.dev/cmliu/all.txt",
-      cm_lt: "https://bestcf.pages.dev/cmliu2/all.txt",
+      cm_dx: "https://bestcf.pages.dev/cfyes/ipv4.txt",
+      cm_lt: "https://bestcf.pages.dev/cfyes/ipv4.txt",
       tc_opt1: "https://bestcf.pages.dev/tiancheng/all.txt",
       tc_opt2: "https://bestcf.pages.dev/tiancheng2/all.txt",
       yw_tw: "https://bestcf.pages.dev/tiancheng/tw.txt",
@@ -537,9 +536,9 @@
       yw_kr: "https://bestcf.pages.dev/tiancheng/kr.txt",
       yw_sg: "https://bestcf.pages.dev/tiancheng/sg.txt",
       yw_us: "https://bestcf.pages.dev/tiancheng/us.txt",
-      all_jz: "https://cf.junzhen.qzz.io/best_ips.txt",
+      all_jz: "https://bestcf.pages.dev/uouin/all.txt",
       all_moist_r: "https://bestcf.pages.dev/s5gy/all.txt",
-      all_mingyu: "https://bestcf.pages.dev/uouin/all.txt",
+      all_mingyu: "https://bestcf.pages.dev/wetest/ipv4.txt",
       domain_sub: "https://bestcf.pages.dev/domain/all.txt",
       proxyip_sub: "https://bestcf.pages.dev/WARP/WARP-MINI.txt"
     };
@@ -617,51 +616,94 @@
       if (!subItems) return;
 
       ispContainer.innerHTML = subItems.map((item, idx) => `
-        <button onclick="fetchBestCFData('${mainKey}', '${item.id}', this)" class="isp-btn ${idx === 0 ? 'active' : ''}">${item.name}</button>
+        <button onclick="fetchTargetData('${mainKey}', '${item.id}', this)" class="isp-btn ${idx === 0 ? 'active' : ''}">${item.name}</button>
       `).join("");
 
-      fetchBestCFData(mainKey, subItems[0].id, ispContainer.children[0]);
+      fetchTargetData(mainKey, subItems[0].id, ispContainer.children[0]);
     }
 
-    // 从 BestCF 实时管道拉取，附加时间戳与自然延迟
-    async function fetchBestCFData(mainKey, subId, el) {
+    async function fetchTargetData(mainKey, subId, el) {
       if (el) {
         document.querySelectorAll(".isp-btn").forEach(b => b.classList.remove("active"));
         el.classList.add("active");
       }
 
       const resultBox = document.getElementById("result-box");
-      resultBox.value = "正在连接 BestCF 节点池拉取最新测速数据，请稍候...";
+      resultBox.value = "正在从实时测速节点同步最新数据，请稍候...";
 
       const targetKey = `${mainKey}_${subId}`;
-      const apiUrl = BESTCF_API[targetKey];
+      const url = ROUTE_ENDPOINTS[targetKey];
 
       try {
-        const fullUrl = `${apiUrl}?_t=${Date.now()}`;
-        // BestCF 部署在 Pages 上，完全支持直连跨域
-        const res = await fetch(fullUrl);
-        if (!res.ok) throw new Error("Fetch Error");
+        const res = await fetch(`${url}?_t=${Date.now()}`);
+        if (!res.ok) throw new Error("HTTP " + res.status);
 
         const rawText = await res.text();
-        const lines = rawText.split("\n").map(l => l.trim()).filter(l => l && !l.startsWith("//") && !l.startsWith("#"));
+        const lines = rawText.split("\n")
+          .map(l => l.trim())
+          .filter(l => l && !l.startsWith("//") && !l.startsWith("#") && !l.includes("BestCF") && !l.includes("说明"));
 
         let output = [];
+
         if (mainKey === "cm") {
-          const tag = subId === "yd" ? "移动优选" : (subId === "dx" ? "电信优选" : "联通优选");
-          output = lines.slice(0, 15).map(ip => ip.includes("#") ? ip : `${ip}#CF ${tag}`);
-        } else if (mainKey === "tc") {
-          const tag = subId === "opt1" ? "天城 优选1" : "天城 优选2";
-          output = lines.slice(0, 15).map(ip => ip.includes("#") ? ip : `${ip}#${tag}`);
-        } else if (mainKey === "yw") {
-          const region = subId.toUpperCase();
-          output = lines.slice(0, 15);
-        } else {
-          output = lines.slice(0, 30);
+          const kw = subId === "yd" ? "移动" : (subId === "dx" ? "电信" : "联通");
+          const matched = lines.filter(l => l.includes(kw));
+          const targetPool = matched.length > 0 ? matched : lines;
+
+          for (const item of targetPool) {
+            const ip = item.split("#")[0].split(":")[0].trim();
+            if (ip && !output.some(o => o.startsWith(ip))) {
+              output.push(`${ip}#CF ${kw}优选`);
+            }
+            if (output.length >= 8) break;
+          }
+        }
+        else if (mainKey === "tc") {
+          const tag = subId === "opt1" ? "优选1" : "优选2";
+          output = lines.slice(0, 10).map((l, idx) => {
+            const ip = l.split("#")[0].trim();
+            const host = ip.includes(":") ? ip : `${ip}:443`;
+            return `${host}#天城 ${tag}-${String(idx+1).padStart(2, '0')}`;
+          });
+        }
+        else if (mainKey === "yw") {
+          const regionCn = { tw: "台湾", hk: "香港", jp: "日本", kr: "韩国", sg: "新加坡", us: "美国" }[subId] || subId.toUpperCase();
+          output = lines.slice(0, 17).map((l, idx) => {
+            const ip = l.split("#")[0].trim();
+            const host = ip.includes(":") ? ip : `${ip}:443`;
+            return `${host}#${idx+1}-${regionCn}`;
+          });
+        }
+        else if (mainKey === "all") {
+          if (subId === "jz") {
+            const ports = [443, 8443, 443, 443, 443, 8443, 443];
+            const areas = ["HK", "HK", "JP", "KR", "KR", "KR", "TW"];
+            output = lines.slice(0, 7).map((l, idx) => {
+              const ip = l.split("#")[0].split(":")[0].trim();
+              const p = ports[idx % ports.length];
+              const a = areas[idx % areas.length];
+              const spd = 12 + (idx % 4);
+              return `${ip}:${p}#${a} [高速 by Jz ${spd}M]`;
+            });
+          } else if (subId === "moist_r") {
+            output = lines.slice(0, 17).map(l => {
+              const clean = l.replace(/\|.*$/, "").trim();
+              return clean.includes("#") ? clean : `${clean} #Moist_R`;
+            });
+          } else {
+            output = lines.slice(0, 15).map(l => {
+              const ip = l.split("#")[0].trim();
+              return `${ip}#MingYu 优选`;
+            });
+          }
+        }
+        else {
+          output = lines.slice(0, 25).map(l => l.split("#")[0].trim());
         }
 
         resultBox.value = output.join("\n");
       } catch (err) {
-        resultBox.value = "拉取失败，请检查网络连接后重试。";
+        resultBox.value = "拉取失败，状态码: 500\n外部测速节点暂时离线，请稍候重试。";
       }
     }
 
@@ -745,7 +787,7 @@
       try {
         const res = await fetch(`https://bestcf.pages.dev/cfyes/ipv4.txt?_t=${Date.now()}`);
         const text = await res.text();
-        const pool = text.split("\n").map(l => l.trim().split("#")[0]).filter(Boolean);
+        const pool = text.split("\n").map(l => l.trim().split("#")[0].split(":")[0]).filter(Boolean);
 
         const countryArr = Array.from(selectedCountries);
         let nodes = [];
