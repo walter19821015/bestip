@@ -601,7 +601,6 @@
   </div>
 
   <script>
-    // 基础数据源端点（多池汇聚）
     const ROUTE_ENDPOINTS = {
       cm_yd: "https://bestcf.pages.dev/cfyes/ipv4.txt",
       cm_dx: "https://bestcf.pages.dev/cfyes/ipv4.txt",
@@ -615,7 +614,8 @@
       yw_sg: "https://bestcf.pages.dev/tiancheng2/all.txt",
       yw_us: "https://bestcf.pages.dev/tiancheng2/all.txt",
       all_jz: "https://bestcf.pages.dev/uouin/all.txt",
-      all_moist_r: "https://bestcf.pages.dev/gslege/Cfxyz.txt",
+      // Moist_R 正确的大池源，恢复满屏节点
+      all_moist_r: "https://bestcf.pages.dev/lzj/all.txt",
       all_mingyu: "https://bestcf.pages.dev/wetest/ipv4.txt",
       domain_sub: "https://bestcf.pages.dev/domain/all.txt"
     };
@@ -643,7 +643,7 @@
       { code: "SI", flag: "🇸🇮", name: "斯洛文尼亚" }, { code: "BG", flag: "🇧🇬", name: "保加利亚" }, { code: "BE", flag: "🇧🇪", name: "比利时" }, { code: "IE", flag: "🇮🇪", name: "爱尔兰" }, { code: "RO", flag: "🇷🇴", name: "罗马尼亚" },
       { code: "IS", flag: "🇮🇸", name: "冰岛" }, { code: "LT", flag: "🇱🇹", name: "立陶宛" }, { code: "AT", flag: "🇦🇹", name: "奥地利" }, { code: "DK", flag: "🇩🇰", name: "丹麦" }, { code: "NO", flag: "🇳🇴", name: "挪威" },
       { code: "PT", flag: "🇵🇹", name: "葡萄牙" }, { code: "GR", flag: "🇬🇷", name: "希腊" }, { code: "HU", flag: "🇭🇺", name: "匈牙利" }, { code: "NZ", flag: "🇳🇿", name: "新西兰" }, { code: "MX", flag: "🇲🇽", name: "墨西哥" },
-      { code: "AR", flag: "🇦🇷", name: "阿根廷" }, { code: "CL", flag: "🇨🇱", name: "智利" }, { code: "UA", flag: "乌克兰", flag: "🇺🇦", name: "乌克兰" }, { code: "KZ", flag: "🇰🇿", name: "哈萨克斯坦" }, { code: "SA", flag: "🇸🇦", name: "沙特" },
+      { code: "AR", flag: "🇦🇷", name: "阿根廷" }, { code: "CL", flag: "🇨🇱", name: "智利" }, { code: "UA", flag: "🇺🇦", name: "乌克兰" }, { code: "KZ", flag: "🇰🇿", name: "哈萨克斯坦" }, { code: "SA", flag: "🇸🇦", name: "沙特" },
       { code: "QA", flag: "🇶🇦", name: "卡塔尔" }, { code: "SK", flag: "🇸🇰", name: "斯洛伐克" }, { code: "HR", flag: "🇭🇷", name: "克罗地亚" }, { code: "LU", flag: "🇱🇺", name: "卢森堡" }, { code: "RS", flag: "🇷🇸", name: "塞尔维亚" },
       { code: "AM", flag: "🇦🇲", name: "亚美尼亚" }, { code: "KG", flag: "🇰🇬", name: "吉尔吉斯斯坦" }, { code: "CY", flag: "🇨🇾", name: "塞浦路斯" }, { code: "BY", flag: "🇧🇾", name: "白俄罗斯" }, { code: "AZ", flag: "🇦🇿", name: "阿塞拜疆" },
       { code: "LI", flag: "🇱🇮", name: "列支敦士登" }, { code: "BA", flag: "🇧🇦", name: "波黑" }, { code: "CO", flag: "🇨🇴", name: "哥伦比亚" }, { code: "EC", flag: "🇪🇨", name: "厄瓜多尔" }, { code: "UZ", flag: "🇺🇿", name: "乌兹别克斯坦" },
@@ -738,7 +738,6 @@
       `).join("");
     }
 
-    // 核心拉取引擎：多源合并 + 完整不过滤
     async function fetchTargetData(mainKey, subId, el) {
       if (el) {
         document.querySelectorAll(".isp-btn").forEach(b => b.classList.remove("active"));
@@ -790,10 +789,9 @@
 
         let output = [];
 
-        // 1. CM 优选：多源合并 + 放宽匹配（找回 104.x.x.x 等全部遗漏节点）
+        // 1. CM 优选
         if (mainKey === "cm") {
           try {
-            // 额外合并 wetest 官方全量池
             const resExtra = await fetch(`https://bestcf.pages.dev/wetest/ipv4.txt?_t=${Date.now()}`);
             if (resExtra.ok) {
               const textExtra = await resExtra.text();
@@ -812,7 +810,6 @@
 
           for (const item of lines) {
             const hasMatch = matchWords.some(w => item.toUpperCase().includes(w));
-            // 包含关键词或者是优选 Anycast 官方段
             if (hasMatch || item.includes(kwLabel)) {
               const ip = item.split("#")[0].split(":")[0].trim();
               if (/^\d+\.\d+\.\d+\.\d+$/.test(ip)) {
@@ -821,7 +818,6 @@
             }
           }
 
-          // 如果还是少于原站，将 Anycast 推荐段全部按三网注入
           if (output.length < 10) {
             const anycastPool = ["104.17.22.231", "104.17.125.98", "104.16.240.177", "104.19.34.37", "104.17.187.57", "104.19.149.171", "104.17.145.43", "104.18.33.121", "198.41.209.76", "198.41.209.69", "198.41.209.48", "198.41.208.163", "198.41.209.248"];
             anycastPool.forEach(ip => {
@@ -840,7 +836,7 @@
             return `${host}#天城 ${tag}-${String(idx+1).padStart(2, '0')}`;
           });
         }
-        // 3. 乌鸦优选：合并天城1 + 天城2 + s5gy 三大底库，彻底找回 85.237 等全部几十个节点
+        // 3. 乌鸦优选
         else if (mainKey === "yw") {
           let pool = lines;
           try {
@@ -874,7 +870,7 @@
             return `${host}#${idx+1}-${regionCn}`;
           });
         }
-        // 4. 优选合集：JZ / Moist_R / mingyu
+        // 4. 优选合集
         else if (mainKey === "all") {
           if (subId === "jz") {
             const ports = [443, 8443, 443, 443, 443, 8443, 443];
@@ -1001,7 +997,7 @@
       }
     }
 
-    // 严谨的双向环境探测：关代理一定放行，开代理一定拦截
+    // 智能环境探测（带1.5秒硬超时熔断，关梯子绝不卡死转圈）
     async function openSpeedModal() {
       const modal = document.getElementById("speed-modal");
       modal.style.display = "flex";
@@ -1016,14 +1012,19 @@
       grid.innerHTML = "";
       exportBtn.style.display = "none";
       progressArea.style.display = "none";
-      ipStatus.innerText = "正在检测网络环境...";
 
       let userIp = "";
-      let userLoc = "CN"; // 默认直连为大陆
+      let userLoc = "CN"; // 关掉梯子默认必须是 CN
+
+      // 设定 1.5 秒硬超时控制器，防止关代理后连海外接口卡死
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1500);
 
       try {
-        // 请求 Cloudflare 实时探测（带时间戳破除缓存）
-        const traceRes = await fetch(`https://1.1.1.1/cdn-cgi/trace?_t=${Date.now()}`);
+        const traceRes = await fetch(`https://1.1.1.1/cdn-cgi/trace?_t=${Date.now()}`, {
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
         if (traceRes.ok) {
           const traceText = await traceRes.text();
           const locMatch = traceText.match(/loc=(.+)/);
@@ -1032,22 +1033,22 @@
           if (ipMatch) userIp = ipMatch[1].trim();
         }
       } catch (e) {
-        // 若探测请求失败（由于关闭了代理导致无法直连 1.1.1.1），说明必定是大陆直连环境
+        // 请求超时或报错（关了代理连不上 1.1.1.1），100% 确认是国内直连环境！
+        clearTimeout(timeoutId);
         userLoc = "CN";
-        userIp = "本地直连网络";
+        userIp = "国内直连网络";
       }
 
-      if (!userIp) userIp = "本地直连网络";
+      if (!userIp) userIp = "国内直连网络";
       ipStatus.innerText = `当前访问IP: ${userIp} | 国家: ${userLoc}`;
 
-      // 只有检测到明确的非 CN 国外出口（开启了翻墙代理）时，才实施拦截！[cite: 26]
+      // 只有在开着代理、明确探测到出口是国外 IP 时才拦截；关掉代理时直接放行
       if (userLoc !== "CN" && userLoc !== "未知" && userLoc !== "") {
         warningText.style.display = "block";
         actionBtn.className = "btn-modal-action btn-disabled-proxy";
         actionBtn.disabled = true;
         actionBtn.innerText = "🚫 非国内环境禁止优选";
       } else {
-        // 关闭代理、或者直连 CN 环境，百分之百放行可用！
         warningText.style.display = "none";
         actionBtn.className = "btn-modal-action btn-ready";
         actionBtn.disabled = false;
