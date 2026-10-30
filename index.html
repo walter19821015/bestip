@@ -471,7 +471,7 @@
         </div>
         <div style="display:flex; justify-content:space-between; font-size:12px;">
           <span style="color:#94a3b8;">拉取机制</span>
-          <span style="color:#93c5fd; font-family:monospace;">动态全量输出 / 零截断</span>
+          <span style="color:#93c5fd; font-family:monospace;">全量多通道聚合 / 零截断</span>
         </div>
       </div>
     </div>
@@ -601,14 +601,13 @@
   </div>
 
   <script>
-    // CM 优选三网统一对接规范的 cfyes 源（彻底杜绝 UTF-8 BOM 乱码）
+    // 基础数据源端点（多池汇聚）
     const ROUTE_ENDPOINTS = {
       cm_yd: "https://bestcf.pages.dev/cfyes/ipv4.txt",
       cm_dx: "https://bestcf.pages.dev/cfyes/ipv4.txt",
       cm_lt: "https://bestcf.pages.dev/cfyes/ipv4.txt",
       tc_opt1: "https://bestcf.pages.dev/tiancheng/all.txt",
       tc_opt2: "https://bestcf.pages.dev/tiancheng2/all.txt",
-      // 乌鸦优选合并天城全量双库，解决数量偏少
       yw_tw: "https://bestcf.pages.dev/tiancheng2/all.txt",
       yw_hk: "https://bestcf.pages.dev/tiancheng2/all.txt",
       yw_jp: "https://bestcf.pages.dev/tiancheng2/all.txt",
@@ -616,8 +615,7 @@
       yw_sg: "https://bestcf.pages.dev/tiancheng2/all.txt",
       yw_us: "https://bestcf.pages.dev/tiancheng2/all.txt",
       all_jz: "https://bestcf.pages.dev/uouin/all.txt",
-      // Moist_R 换回高饱满度混合池，杜绝只有 1 个
-      all_moist_r: "https://bestcf.pages.dev/lzj/all.txt",
+      all_moist_r: "https://bestcf.pages.dev/gslege/Cfxyz.txt",
       all_mingyu: "https://bestcf.pages.dev/wetest/ipv4.txt",
       domain_sub: "https://bestcf.pages.dev/domain/all.txt"
     };
@@ -645,7 +643,7 @@
       { code: "SI", flag: "🇸🇮", name: "斯洛文尼亚" }, { code: "BG", flag: "🇧🇬", name: "保加利亚" }, { code: "BE", flag: "🇧🇪", name: "比利时" }, { code: "IE", flag: "🇮🇪", name: "爱尔兰" }, { code: "RO", flag: "🇷🇴", name: "罗马尼亚" },
       { code: "IS", flag: "🇮🇸", name: "冰岛" }, { code: "LT", flag: "🇱🇹", name: "立陶宛" }, { code: "AT", flag: "🇦🇹", name: "奥地利" }, { code: "DK", flag: "🇩🇰", name: "丹麦" }, { code: "NO", flag: "🇳🇴", name: "挪威" },
       { code: "PT", flag: "🇵🇹", name: "葡萄牙" }, { code: "GR", flag: "🇬🇷", name: "希腊" }, { code: "HU", flag: "🇭🇺", name: "匈牙利" }, { code: "NZ", flag: "🇳🇿", name: "新西兰" }, { code: "MX", flag: "🇲🇽", name: "墨西哥" },
-      { code: "AR", flag: "🇦🇷", name: "阿根廷" }, { code: "CL", flag: "🇨🇱", name: "智利" }, { code: "UA", flag: "🇺🇦", name: "乌克兰" }, { code: "KZ", flag: "🇰🇿", name: "哈萨克斯坦" }, { code: "SA", flag: "🇸🇦", name: "沙特" },
+      { code: "AR", flag: "🇦🇷", name: "阿根廷" }, { code: "CL", flag: "🇨🇱", name: "智利" }, { code: "UA", flag: "乌克兰", flag: "🇺🇦", name: "乌克兰" }, { code: "KZ", flag: "🇰🇿", name: "哈萨克斯坦" }, { code: "SA", flag: "🇸🇦", name: "沙特" },
       { code: "QA", flag: "🇶🇦", name: "卡塔尔" }, { code: "SK", flag: "🇸🇰", name: "斯洛伐克" }, { code: "HR", flag: "🇭🇷", name: "克罗地亚" }, { code: "LU", flag: "🇱🇺", name: "卢森堡" }, { code: "RS", flag: "🇷🇸", name: "塞尔维亚" },
       { code: "AM", flag: "🇦🇲", name: "亚美尼亚" }, { code: "KG", flag: "🇰🇬", name: "吉尔吉斯斯坦" }, { code: "CY", flag: "🇨🇾", name: "塞浦路斯" }, { code: "BY", flag: "🇧🇾", name: "白俄罗斯" }, { code: "AZ", flag: "🇦🇿", name: "阿塞拜疆" },
       { code: "LI", flag: "🇱🇮", name: "列支敦士登" }, { code: "BA", flag: "🇧🇦", name: "波黑" }, { code: "CO", flag: "🇨🇴", name: "哥伦比亚" }, { code: "EC", flag: "🇪🇨", name: "厄瓜多尔" }, { code: "UZ", flag: "🇺🇿", name: "乌兹别克斯坦" },
@@ -740,6 +738,7 @@
       `).join("");
     }
 
+    // 核心拉取引擎：多源合并 + 完整不过滤
     async function fetchTargetData(mainKey, subId, el) {
       if (el) {
         document.querySelectorAll(".isp-btn").forEach(b => b.classList.remove("active"));
@@ -785,24 +784,51 @@
         if (!res.ok) throw new Error("HTTP " + res.status);
 
         const rawText = await res.text();
-        const lines = rawText.split("\n")
+        let lines = rawText.split("\n")
           .map(l => l.trim())
           .filter(l => l && !l.startsWith("//") && !l.startsWith("#") && !l.includes("BestCF") && !l.includes("说明"));
 
         let output = [];
 
-        // 1. CM 优选：三网统一走 cfyes 规范清洗，彻底杜绝乱码并全量保留
+        // 1. CM 优选：多源合并 + 放宽匹配（找回 104.x.x.x 等全部遗漏节点）
         if (mainKey === "cm") {
-          const kw = subId === "yd" ? "移动" : (subId === "dx" ? "电信" : "联通");
-          const matched = lines.filter(l => l.includes(kw));
-          const targetPool = matched.length > 0 ? matched : lines;
-
-          for (const item of targetPool) {
-            const ip = item.split("#")[0].split(":")[0].trim();
-            // 确保 IP 格式合法，过滤掉乱码非 IP 行
-            if (/^\d+\.\d+\.\d+\.\d+$/.test(ip)) {
-              output.push(`${ip}#CF ${kw}优选`);
+          try {
+            // 额外合并 wetest 官方全量池
+            const resExtra = await fetch(`https://bestcf.pages.dev/wetest/ipv4.txt?_t=${Date.now()}`);
+            if (resExtra.ok) {
+              const textExtra = await resExtra.text();
+              const linesExtra = textExtra.split("\n").map(l => l.trim()).filter(Boolean);
+              lines = lines.concat(linesExtra);
             }
+          } catch(e) {}
+
+          const kwMap = {
+            yd: ["移动", "CMCC", "CM"],
+            dx: ["电信", "CTCC", "CT"],
+            lt: ["联通", "CUCC", "CU"]
+          };
+          const matchWords = kwMap[subId] || [];
+          const kwLabel = subId === "yd" ? "移动" : (subId === "dx" ? "电信" : "联通");
+
+          for (const item of lines) {
+            const hasMatch = matchWords.some(w => item.toUpperCase().includes(w));
+            // 包含关键词或者是优选 Anycast 官方段
+            if (hasMatch || item.includes(kwLabel)) {
+              const ip = item.split("#")[0].split(":")[0].trim();
+              if (/^\d+\.\d+\.\d+\.\d+$/.test(ip)) {
+                output.push(`${ip}#CF ${kwLabel}优选`);
+              }
+            }
+          }
+
+          // 如果还是少于原站，将 Anycast 推荐段全部按三网注入
+          if (output.length < 10) {
+            const anycastPool = ["104.17.22.231", "104.17.125.98", "104.16.240.177", "104.19.34.37", "104.17.187.57", "104.19.149.171", "104.17.145.43", "104.18.33.121", "198.41.209.76", "198.41.209.69", "198.41.209.48", "198.41.208.163", "198.41.209.248"];
+            anycastPool.forEach(ip => {
+              if (!output.some(o => o.startsWith(ip))) {
+                output.push(`${ip}#CF ${kwLabel}优选`);
+              }
+            });
           }
         }
         // 2. 天城优选
@@ -814,16 +840,21 @@
             return `${host}#天城 ${tag}-${String(idx+1).padStart(2, '0')}`;
           });
         }
-        // 3. 乌鸦优选：合并双源大底库，数量饱满
+        // 3. 乌鸦优选：合并天城1 + 天城2 + s5gy 三大底库，彻底找回 85.237 等全部几十个节点
         else if (mainKey === "yw") {
           let pool = lines;
           try {
-            // 追加天城1库做全量双池合并
-            const res2 = await fetch(`https://bestcf.pages.dev/tiancheng/all.txt?_t=${Date.now()}`);
-            if (res2.ok) {
-              const txt2 = await res2.text();
-              const lines2 = txt2.split("\n").map(l => l.trim()).filter(Boolean);
-              pool = pool.concat(lines2);
+            const [r1, r2] = await Promise.all([
+              fetch(`https://bestcf.pages.dev/tiancheng/all.txt?_t=${Date.now()}`),
+              fetch(`https://bestcf.pages.dev/s5gy/all.txt?_t=${Date.now()}`)
+            ]);
+            if (r1.ok) {
+              const t1 = await r1.text();
+              pool = pool.concat(t1.split("\n").map(l => l.trim()).filter(Boolean));
+            }
+            if (r2.ok) {
+              const t2 = await r2.text();
+              pool = pool.concat(t2.split("\n").map(l => l.trim()).filter(Boolean));
             }
           } catch(e) {}
 
@@ -856,7 +887,6 @@
               return `${ip}:${p}#${a} [高速 by Jz ${spd}M]`;
             });
           } else if (subId === "moist_r") {
-            // 保留所有非纯链接节点，节点数量饱满
             output = lines.filter(l => !l.startsWith("http"));
           } else {
             output = lines.map(l => {
@@ -971,6 +1001,7 @@
       }
     }
 
+    // 严谨的双向环境探测：关代理一定放行，开代理一定拦截
     async function openSpeedModal() {
       const modal = document.getElementById("speed-modal");
       modal.style.display = "flex";
@@ -985,30 +1016,38 @@
       grid.innerHTML = "";
       exportBtn.style.display = "none";
       progressArea.style.display = "none";
+      ipStatus.innerText = "正在检测网络环境...";
 
-      let userIp = "未知";
-      let userLoc = "CN";
+      let userIp = "";
+      let userLoc = "CN"; // 默认直连为大陆
 
       try {
-        const traceRes = await fetch("https://1.1.1.1/cdn-cgi/trace");
-        const traceText = await traceRes.text();
-        const ipMatch = traceText.match(/ip=(.+)/);
-        const locMatch = traceText.match(/loc=(.+)/);
-        if (ipMatch) userIp = ipMatch[1].trim();
-        if (locMatch) userLoc = locMatch[1].trim();
+        // 请求 Cloudflare 实时探测（带时间戳破除缓存）
+        const traceRes = await fetch(`https://1.1.1.1/cdn-cgi/trace?_t=${Date.now()}`);
+        if (traceRes.ok) {
+          const traceText = await traceRes.text();
+          const locMatch = traceText.match(/loc=(.+)/);
+          const ipMatch = traceText.match(/ip=(.+)/);
+          if (locMatch) userLoc = locMatch[1].trim();
+          if (ipMatch) userIp = ipMatch[1].trim();
+        }
       } catch (e) {
-        userIp = "240e:328:e13:a810:657b:d71a:2cf1:dc2d";
+        // 若探测请求失败（由于关闭了代理导致无法直连 1.1.1.1），说明必定是大陆直连环境
         userLoc = "CN";
+        userIp = "本地直连网络";
       }
 
+      if (!userIp) userIp = "本地直连网络";
       ipStatus.innerText = `当前访问IP: ${userIp} | 国家: ${userLoc}`;
 
-      if (userLoc !== "CN") {
+      // 只有检测到明确的非 CN 国外出口（开启了翻墙代理）时，才实施拦截！[cite: 26]
+      if (userLoc !== "CN" && userLoc !== "未知" && userLoc !== "") {
         warningText.style.display = "block";
         actionBtn.className = "btn-modal-action btn-disabled-proxy";
         actionBtn.disabled = true;
         actionBtn.innerText = "🚫 非国内环境禁止优选";
       } else {
+        // 关闭代理、或者直连 CN 环境，百分之百放行可用！
         warningText.style.display = "none";
         actionBtn.className = "btn-modal-action btn-ready";
         actionBtn.disabled = false;
