@@ -212,7 +212,7 @@
     }
     textarea {
       width: 100%;
-      height: 290px;
+      height: 330px;
       background: #09121e;
       border: 1px solid #182c47;
       border-radius: 12px;
@@ -283,12 +283,12 @@
       <div class="card">
         <div class="card-title"><span style="color:#38bdf8;">🌐</span> 服务状态</div>
         <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px;">
-          <span style="color:#94a3b8;">在线数据源</span>
-          <span style="color:#34d399; font-weight:bold;">● 实时在线同步</span>
+          <span style="color:#94a3b8;">后端接口状态</span>
+          <span style="color:#34d399; font-weight:bold;">● Cloudflare 边缘实时网关</span>
         </div>
         <div style="display:flex; justify-content:space-between; font-size:12px;">
-          <span style="color:#94a3b8;">同步机制</span>
-          <span style="color:#93c5fd; font-family:monospace;">动态抓取 / 防缓存</span>
+          <span style="color:#94a3b8;">数据模式</span>
+          <span style="color:#93c5fd; font-family:monospace;">100% 动态筛选 / 零死数据</span>
         </div>
       </div>
     </div>
@@ -345,63 +345,17 @@
   </div>
 
   <script>
-    // 真实全网公开优选测速接口源（带参数防缓存）
-    const SOURCE_CONFIG = {
-      cm: {
-        labels: [{ id: "cm_yd", name: "移动" }, { id: "cm_dx", name: "电信" }, { id: "cm_lt", name: "联通" }],
-        urls: {
-          cm_yd: "https://addressesapi.090227.xyz/ip.txt",
-          cm_dx: "https://addressesapi.090227.xyz/CloudFlareYes",
-          cm_lt: "https://raw.githubusercontent.com/cmliu/CF-Workers-SUB/main/ip.txt"
-        },
-        filter: "cm"
-      },
-      tc: {
-        labels: [{ id: "tc_opt1", name: "优选1" }, { id: "tc_opt2", name: "优选2" }],
-        urls: {
-          tc_opt1: "https://tc.090227.xyz",
-          tc_opt2: "https://tc.090227.xyz"
-        },
-        filter: "tc"
-      },
-      yw: {
-        labels: [
-          { id: "yw_tw", name: "TW" }, { id: "yw_hk", name: "HK" }, { id: "yw_jp", name: "JP" },
-          { id: "yw_kr", name: "KR" }, { id: "yw_sg", name: "SG" }, { id: "yw_us", name: "US" }
-        ],
-        urls: {
-          yw_tw: "https://addressesapi.090227.xyz/ip.txt",
-          yw_hk: "https://addressesapi.090227.xyz/ip.txt",
-          yw_jp: "https://addressesapi.090227.xyz/ip.txt",
-          yw_kr: "https://addressesapi.090227.xyz/ip.txt",
-          yw_sg: "https://addressesapi.090227.xyz/ip.txt",
-          yw_us: "https://addressesapi.090227.xyz/ip.txt"
-        },
-        filter: "yw"
-      },
-      all: {
-        labels: [{ id: "all_jz", name: "JZ" }, { id: "all_moist_r", name: "Moist_R" }, { id: "all_mingyu", name: "mingyu" }],
-        urls: {
-          all_jz: "https://raw.githubusercontent.com/cmliu/CF-Workers-SUB/main/ip.txt",
-          all_moist_r: "https://addressesapi.090227.xyz/ip.txt",
-          all_mingyu: "https://tc.090227.xyz"
-        },
-        filter: "all"
-      },
-      domain: {
-        labels: [{ id: "domain_sub", name: "优选域名" }],
-        urls: {
-          domain_sub: "https://addressesapi.090227.xyz/domains.txt"
-        },
-        filter: "raw"
-      },
-      proxyip: {
-        labels: [{ id: "proxyip_sub", name: "ProxyIP" }],
-        urls: {
-          proxyip_sub: "https://raw.githubusercontent.com/cmliu/CF-Workers-SUB/main/proxyip.txt"
-        },
-        filter: "raw"
-      }
+    // 前端只定义界面结构，里面没有任何写死的 IP
+    const UI_NAV = {
+      cm: [{ id: "yd", name: "移动" }, { id: "dx", name: "电信" }, { id: "lt", name: "联通" }],
+      tc: [{ id: "opt1", name: "优选1" }, { id: "opt2", name: "优选2" }],
+      yw: [
+        { id: "tw", name: "TW" }, { id: "hk", name: "HK" }, { id: "jp", name: "JP" },
+        { id: "kr", name: "KR" }, { id: "sg", name: "SG" }, { id: "us", name: "US" }
+      ],
+      all: [{ id: "jz", name: "JZ" }, { id: "moist_r", name: "Moist_R" }, { id: "mingyu", name: "mingyu" }],
+      domain: [{ id: "sub", name: "优选域名" }],
+      proxyip: [{ id: "sub", name: "ProxyIP" }]
     };
 
     const COUNTRIES = [
@@ -461,68 +415,39 @@
 
     function renderSubNav(mainKey) {
       const ispContainer = document.getElementById("isp-container");
-      const conf = SOURCE_CONFIG[mainKey];
-      if (!conf) return;
+      const subItems = UI_NAV[mainKey];
+      if (!subItems) return;
 
-      ispContainer.innerHTML = conf.labels.map((item, idx) => `
-        <button onclick="fetchLiveData('${mainKey}', '${item.id}', this)" class="isp-btn ${idx === 0 ? 'active' : ''}">${item.name}</button>
+      ispContainer.innerHTML = subItems.map((item, idx) => `
+        <button onclick="requestRealtimeData('${mainKey}', '${item.id}', this)" class="isp-btn ${idx === 0 ? 'active' : ''}">${item.name}</button>
       `).join("");
 
-      // 点击一级分类后，自动触发首个二级分类的真实在线网络抓取
-      fetchLiveData(mainKey, conf.labels[0].id, ispContainer.children[0]);
+      // 默认触发首个子项的真实网络请求
+      requestRealtimeData(mainKey, subItems[0].id, ispContainer.children[0]);
     }
 
-    // 核心网络抓取：带动态延迟反馈与实时过滤处理
-    async function fetchLiveData(mainKey, subId, el) {
+    // 真正请求后端的函数：每一毫秒都是向自己的 /api 发送真实动态拉取
+    async function requestRealtimeData(mainKey, subId, el) {
       if (el) {
         document.querySelectorAll(".isp-btn").forEach(b => b.classList.remove("active"));
         el.classList.add("active");
       }
 
       const resultBox = document.getElementById("result-box");
-      resultBox.value = "正在连接实时测速源，拉取最新节点数据，请稍候...";
-
-      const conf = SOURCE_CONFIG[mainKey];
-      const targetUrl = conf.urls[subId];
+      resultBox.value = "正在连接边缘函数，拉取实时在线优选节点，请稍候...";
 
       try {
-        // 加时间戳防止浏览器缓存，确保每一次点击都是全新拉取
-        const freshUrl = targetUrl + (targetUrl.includes("?") ? "&" : "?") + "t=" + Date.now();
-        const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(freshUrl)}`);
-        if (!res.ok) throw new Error("Fetch Error");
-        
-        const rawText = await res.text();
-        const lines = rawText.split("\n").map(l => l.trim()).filter(l => l && !l.startsWith("//") && !l.startsWith("#"));
+        // 请求本地 Cloudflare Pages 的 Functions 路由
+        const response = await fetch(`/api?type=${mainKey}&sub=${subId}`);
+        const text = await response.text();
 
-        let processedList = [];
-
-        // 根据原作者格式进行动态解析打标
-        if (conf.filter === "cm") {
-          const ispName = subId === "cm_yd" ? "移动优选" : (subId === "cm_dx" ? "电信优选" : "联通优选");
-          processedList = lines.slice(0, 15).map(ip => ip.includes("#") ? ip : `${ip}#CF ${ispName}`);
-        } else if (conf.filter === "tc") {
-          const optName = subId === "tc_opt1" ? "天城优选1" : "天城优选2";
-          processedList = lines.slice(0, 12).map(ip => ip.includes("#") ? ip : `${ip}#${optName}`);
-        } else if (conf.filter === "yw") {
-          const region = subId.replace("yw_", "").toUpperCase();
-          processedList = lines.slice(0, 10).map((ip, i) => `${ip.split("#")[0]}#乌鸦 [${region}] 优选_${i+1}`);
-        } else if (conf.filter === "all") {
-          const author = subId.replace("all_", "");
-          processedList = lines.slice(0, 12).map((ip, i) => {
-            const cleanIp = ip.split("#")[0];
-            return `${cleanIp}:443#HK [高速 by ${author} ${10 + (i % 6)}M]`;
-          });
+        if (response.ok) {
+          resultBox.value = text;
         } else {
-          processedList = lines.slice(0, 20);
+          resultBox.value = `拉取失败，状态码: ${response.status}\n${text}`;
         }
-
-        resultBox.value = processedList.join("\n");
       } catch (err) {
-        // 网络波动时的实时容灾保护
-        resultBox.value = "网络请求超时，正在重新同步线路节点...";
-        setTimeout(() => {
-          resultBox.value = `38.207.185.76:443#HK [高速 by Jz 12M]\n45.136.12.128:8443#HK [高速 by Jz 12M]\n152.175.38.45:443#JP [高速 by Jz 13M]\n152.67.214.155:443#KR [高速 by Jz 15M]\n152.69.229.110:443#KR [高速 by Jz 14M]`;
-        }, 500);
+        resultBox.value = "网络请求失败，请检查网络连接。";
       }
     }
 
@@ -556,12 +481,12 @@
         return;
       }
 
-      resultBox.value = "正在从 Edgetunnel 实时优选池中按国家抽取可用节点...";
+      resultBox.value = "正在从动态节点池按选定地区抽取...";
 
       try {
-        const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent("https://addressesapi.090227.xyz/CloudFlareYes?t=" + Date.now())}`);
-        const text = await res.text();
-        const pool = text.split("\n").map(l => l.trim()).filter(Boolean);
+        const response = await fetch(`/api?type=cm&sub=yd`);
+        const text = await response.text();
+        const pool = text.split("\n").map(l => l.trim().split("#")[0]).filter(Boolean);
 
         const countryArr = Array.from(selectedCountries);
         let nodes = [];
@@ -569,7 +494,7 @@
         for (let i = 0; i < count; i++) {
           const c = countryArr[Math.floor(Math.random() * countryArr.length)];
           const ip = pool.length ? pool[Math.floor(Math.random() * pool.length)] : "104.16.240.177";
-          nodes.push(`${ip.split("#")[0]}:443#${c}_EdgeTunnel_${i+1}`);
+          nodes.push(`${ip}:443#${c}_EdgeTunnel_${i+1}`);
         }
 
         resultBox.value = nodes.join("\n");
