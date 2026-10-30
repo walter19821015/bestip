@@ -401,12 +401,12 @@
       <div class="card">
         <div class="card-title"><span style="color:#38bdf8;">🌐</span> 服务状态</div>
         <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px;">
-          <span style="color:#94a3b8;">在线动态源</span>
-          <span style="color:#34d399; font-weight:bold;">● 实时同步中</span>
+          <span style="color:#94a3b8;">数据源头</span>
+          <span style="color:#34d399; font-weight:bold;">● BestCF 官方节点池</span>
         </div>
         <div style="display:flex; justify-content:space-between; font-size:12px;">
-          <span style="color:#94a3b8;">拉取机制</span>
-          <span style="color:#93c5fd; font-family:monospace;">动态抓取 / 毫秒级分流</span>
+          <span style="color:#94a3b8;">同步状态</span>
+          <span style="color:#93c5fd; font-family:monospace;">半小时/整点定时同步</span>
         </div>
       </div>
     </div>
@@ -524,33 +524,24 @@
   </div>
 
   <script>
-    // 真实在线直连源（带镜像备份）
-    const SOURCE_ENDPOINTS = {
-      cm_yd: [
-        "https://addressesapi.090227.xyz/ip.txt",
-        "https://cdn.jsdelivr.net/gh/cmliu/CF-Workers-SUB@main/ip.txt"
-      ],
-      cm_dx: [
-        "https://addressesapi.090227.xyz/CloudFlareYes",
-        "https://cdn.jsdelivr.net/gh/cmliu/CF-Workers-SUB@main/ip.txt"
-      ],
-      cm_lt: [
-        "https://addressesapi.090227.xyz/ip.txt",
-        "https://cdn.jsdelivr.net/gh/cmliu/CF-Workers-SUB@main/ip.txt"
-      ],
-      tc_opt1: ["https://tc.090227.xyz"],
-      tc_opt2: ["https://tc.090227.xyz"],
-      yw_tw: ["https://addressesapi.090227.xyz/ip.txt"],
-      yw_hk: ["https://addressesapi.090227.xyz/ip.txt"],
-      yw_jp: ["https://addressesapi.090227.xyz/ip.txt"],
-      yw_kr: ["https://addressesapi.090227.xyz/ip.txt"],
-      yw_sg: ["https://addressesapi.090227.xyz/ip.txt"],
-      yw_us: ["https://addressesapi.090227.xyz/ip.txt"],
-      all_jz: ["https://cdn.jsdelivr.net/gh/cmliu/CF-Workers-SUB@main/ip.txt"],
-      all_moist_r: ["https://addressesapi.090227.xyz/ip.txt"],
-      all_mingyu: ["https://tc.090227.xyz"],
-      domain_sub: ["https://addressesapi.090227.xyz/domains.txt"],
-      proxyip_sub: ["https://cdn.jsdelivr.net/gh/cmliu/CF-Workers-SUB@main/proxyip.txt"]
+    // 权威源头站 BestCF 官方直连接口字典
+    const BESTCF_API = {
+      cm_yd: "https://bestcf.pages.dev/cfyes/ipv4.txt",
+      cm_dx: "https://bestcf.pages.dev/cmliu/all.txt",
+      cm_lt: "https://bestcf.pages.dev/cmliu2/all.txt",
+      tc_opt1: "https://bestcf.pages.dev/tiancheng/all.txt",
+      tc_opt2: "https://bestcf.pages.dev/tiancheng2/all.txt",
+      yw_tw: "https://bestcf.pages.dev/tiancheng/tw.txt",
+      yw_hk: "https://bestcf.pages.dev/tiancheng/hk.txt",
+      yw_jp: "https://bestcf.pages.dev/tiancheng/jp.txt",
+      yw_kr: "https://bestcf.pages.dev/tiancheng/kr.txt",
+      yw_sg: "https://bestcf.pages.dev/tiancheng/sg.txt",
+      yw_us: "https://bestcf.pages.dev/tiancheng/us.txt",
+      all_jz: "https://cf.junzhen.qzz.io/best_ips.txt",
+      all_moist_r: "https://bestcf.pages.dev/s5gy/all.txt",
+      all_mingyu: "https://bestcf.pages.dev/uouin/all.txt",
+      domain_sub: "https://bestcf.pages.dev/domain/all.txt",
+      proxyip_sub: "https://bestcf.pages.dev/WARP/WARP-MINI.txt"
     };
 
     const UI_NAV = {
@@ -626,84 +617,51 @@
       if (!subItems) return;
 
       ispContainer.innerHTML = subItems.map((item, idx) => `
-        <button onclick="fetchRealtimeNodes('${mainKey}', '${item.id}', this)" class="isp-btn ${idx === 0 ? 'active' : ''}">${item.name}</button>
+        <button onclick="fetchBestCFData('${mainKey}', '${item.id}', this)" class="isp-btn ${idx === 0 ? 'active' : ''}">${item.name}</button>
       `).join("");
 
-      fetchRealtimeNodes(mainKey, subItems[0].id, ispContainer.children[0]);
+      fetchBestCFData(mainKey, subItems[0].id, ispContainer.children[0]);
     }
 
-    // 真正从网络在线拉取，绝不硬编码任何数据
-    async function fetchRealtimeNodes(mainKey, subId, el) {
+    // 从 BestCF 实时管道拉取，附加时间戳与自然延迟
+    async function fetchBestCFData(mainKey, subId, el) {
       if (el) {
         document.querySelectorAll(".isp-btn").forEach(b => b.classList.remove("active"));
         el.classList.add("active");
       }
 
       const resultBox = document.getElementById("result-box");
-      resultBox.value = "正在向公共测速节点发起请求，拉取最新优选数据...";
+      resultBox.value = "正在连接 BestCF 节点池拉取最新测速数据，请稍候...";
 
       const targetKey = `${mainKey}_${subId}`;
-      const candidateList = SOURCE_ENDPOINTS[targetKey] || [];
+      const apiUrl = BESTCF_API[targetKey];
 
-      let fetchedText = "";
+      try {
+        const fullUrl = `${apiUrl}?_t=${Date.now()}`;
+        // BestCF 部署在 Pages 上，完全支持直连跨域
+        const res = await fetch(fullUrl);
+        if (!res.ok) throw new Error("Fetch Error");
 
-      for (const rawUrl of candidateList) {
-        const fullUrl = rawUrl + (rawUrl.includes("?") ? "&" : "?") + "_t=" + Date.now();
-        // 直连 + 穿透网关轮询
-        const requestQueues = [
-          fullUrl,
-          `https://api.allorigins.win/raw?url=${encodeURIComponent(fullUrl)}`
-        ];
+        const rawText = await res.text();
+        const lines = rawText.split("\n").map(l => l.trim()).filter(l => l && !l.startsWith("//") && !l.startsWith("#"));
 
-        for (const reqUrl of requestQueues) {
-          try {
-            const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), 3500);
-            const resp = await fetch(reqUrl, { signal: controller.signal });
-            clearTimeout(timer);
-
-            if (resp.ok) {
-              const txt = await resp.text();
-              if (txt && txt.trim().length > 10) {
-                fetchedText = txt.trim();
-                break;
-              }
-            }
-          } catch (e) {
-            // 忽略重试下一个通道
-          }
-        }
-        if (fetchedText) break;
-      }
-
-      // 实时动态清洗过滤
-      if (fetchedText) {
-        const lines = fetchedText.split("\n").map(l => l.trim()).filter(l => l && !l.startsWith("//") && !l.startsWith("#"));
         let output = [];
-
         if (mainKey === "cm") {
           const tag = subId === "yd" ? "移动优选" : (subId === "dx" ? "电信优选" : "联通优选");
           output = lines.slice(0, 15).map(ip => ip.includes("#") ? ip : `${ip}#CF ${tag}`);
         } else if (mainKey === "tc") {
           const tag = subId === "opt1" ? "天城 优选1" : "天城 优选2";
-          output = lines.slice(0, 12).map(ip => ip.includes("#") ? ip : `${ip}#${tag}`);
+          output = lines.slice(0, 15).map(ip => ip.includes("#") ? ip : `${ip}#${tag}`);
         } else if (mainKey === "yw") {
           const region = subId.toUpperCase();
-          const regionMap = { TW: "台湾", HK: "香港", JP: "日本", KR: "韩国", SG: "新加坡", US: "美国" };
-          output = lines.slice(0, 15).map((ip, i) => `${ip.split("#")[0]}:443#${i+1}-${regionMap[region] || region}`);
-        } else if (mainKey === "all") {
-          if (subId === "moist_r") {
-            output = lines.slice(0, 20);
-          } else {
-            output = lines.slice(0, 15).map((ip, i) => `${ip.split("#")[0]}:443#[高速 by ${subId} ${10 + (i % 5)}M]`);
-          }
+          output = lines.slice(0, 15);
         } else {
           output = lines.slice(0, 30);
         }
 
         resultBox.value = output.join("\n");
-      } else {
-        resultBox.value = "拉取失败，状态码: 500\n外部测速节点暂时离线，请稍候重试。";
+      } catch (err) {
+        resultBox.value = "拉取失败，请检查网络连接后重试。";
       }
     }
 
@@ -782,10 +740,10 @@
         return;
       }
 
-      resultBox.value = "正在从动态节点池按选定地区抽取...";
+      resultBox.value = "正在从 BestCF 节点池按选定地区抽取...";
 
       try {
-        const res = await fetch("https://addressesapi.090227.xyz/CloudFlareYes?t=" + Date.now());
+        const res = await fetch(`https://bestcf.pages.dev/cfyes/ipv4.txt?_t=${Date.now()}`);
         const text = await res.text();
         const pool = text.split("\n").map(l => l.trim().split("#")[0]).filter(Boolean);
 
