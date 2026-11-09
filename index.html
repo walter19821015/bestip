@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+  <script src="https://res.zvo.cn/translate/translate.js"></script>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1135,5 +1136,117 @@
       });
     }
   </script>
+  <!-- === 优选节点专属：标题右侧对齐 + 首页与Edge翻译组件 === -->
+<style>
+  /* 胶囊按钮样式（微调半透明适应暗色背景，文本永不换行） */
+  .nav-header-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 5px !important;
+    height: 32px !important;
+    padding: 0 12px !important;
+    background: rgba(255, 255, 255, 0.9) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #1f2937 !important;
+    text-decoration: none !important;
+    cursor: pointer !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+    box-sizing: border-box !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+  .nav-header-btn:hover {
+    background: #ffffff !important;
+  }
+</style>
+
+<script>
+  (function() {
+    function initTranslate() {
+      if (typeof translate === 'undefined') {
+        setTimeout(initTranslate, 50);
+        return;
+      }
+      translate.selectLanguageTag.show = false;
+      translate.service.use('client.edge');
+      translate.execute();
+
+      if (document.getElementById('lang-dropdown-wrapper')) return;
+
+      // 1. 寻找页面上的“网络节点聚合面板”标题元素
+      let targetHeading = null;
+      const headings = document.querySelectorAll('h1, h2, h3, div');
+      for (let i = 0; i < headings.length; i++) {
+        if (headings[i].childNodes.length === 1 && headings[i].innerText.trim() === '网络节点聚合面板') {
+          targetHeading = headings[i];
+          break;
+        }
+      }
+
+      // 创建按钮包裹容器
+      const wrapper = document.createElement('div');
+      wrapper.id = 'lang-dropdown-wrapper';
+      wrapper.style.cssText = 'display:inline-flex;align-items:center;gap:8px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;';
+      wrapper.innerHTML = `
+        <a href="https://walter19821015.ccwu.cc" class="nav-header-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+          <span>首页</span>
+        </a>
+        <div style="position:relative;display:inline-flex;align-items:center;">
+          <button id="langMenuBtn" type="button" class="nav-header-btn">
+            <span>🌐 语言</span>
+            <span style="font-size:10px;opacity:0.7;">▼</span>
+          </button>
+          <div id="langMenu" style="display:none;position:absolute;right:0;top:calc(100% + 6px);width:120px;background:#ffffff;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,0.25);border:1px solid #e5e7eb;overflow:hidden;z-index:999999;padding:4px 0;">
+            <a href="javascript:translate.changeLanguage('chinese_simplified');" style="display:block;padding:8px 14px;color:#374151;font-size:13px;text-decoration:none;">简体中文</a>
+            <a href="javascript:translate.changeLanguage('english');" style="display:block;padding:8px 14px;color:#374151;font-size:13px;text-decoration:none;">English</a>
+            <a href="javascript:translate.changeLanguage('spanish');" style="display:block;padding:8px 14px;color:#374151;font-size:13px;text-decoration:none;">Español</a>
+            <a href="javascript:translate.changeLanguage('arabic');" style="display:block;padding:8px 14px;color:#374151;font-size:13px;text-decoration:none;">العربية</a>
+          </div>
+        </div>
+      `;
+
+      // 2. 如果找到标题，将标题父级设为弹性两端对齐，并把按钮插在右侧
+      if (targetHeading && targetHeading.parentElement) {
+        const parent = targetHeading.parentElement;
+        parent.style.display = 'flex';
+        parent.style.alignItems = 'center';
+        parent.style.justifyContent = 'space-between';
+        parent.appendChild(wrapper);
+      } else {
+        // 兜底策略：如果没抓到节点，直接右上角悬浮
+        wrapper.style.position = 'fixed';
+        wrapper.style.top = '20px';
+        wrapper.style.right = '24px';
+        wrapper.style.zIndex = '99999';
+        document.body.appendChild(wrapper);
+      }
+
+      // 菜单显隐逻辑
+      const btn = document.getElementById('langMenuBtn');
+      const menu = document.getElementById('langMenu');
+      btn.onclick = function(e) {
+        e.stopPropagation();
+        menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+      };
+      document.addEventListener('click', function(e) {
+        if (!wrapper.contains(e.target)) menu.style.display = 'none';
+      });
+      menu.onclick = function() {
+        menu.style.display = 'none';
+      };
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initTranslate);
+    } else {
+      initTranslate();
+    }
+  })();
+</script>
 </body>
 </html>
